@@ -1,0 +1,4 @@
+# Valores opcionais; todos já possuem defaults seguros para o ambiente local.
+# host         = "mural.localtest.me"
+# cluster_name = "mural"
+# namespace    = "mural"

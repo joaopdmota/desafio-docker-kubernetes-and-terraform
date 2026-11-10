@@ -1,0 +1,23 @@
+{{- if .Values.ingress.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "mural.fullname" . }}
+  labels:
+    {{- include "mural.labels" . | nindent 4 }}
+spec:
+  ingressClassName: {{ .Values.ingress.className }}
+  rules:
+    - host: {{ .Values.ingress.host | quote }}
+      http:
+        paths:
+          - path: /api
+            pathType: Prefix
+            backend:
+              service: { name: {{ include "mural.fullname" . }}-api, port: { name: http } }
+          - path: /
+            pathType: Prefix
+            backend:
+              service: { name: {{ include "mural.fullname" . }}-web, port: { name: http } }
+{{- end }}
+

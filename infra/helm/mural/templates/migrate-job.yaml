@@ -1,0 +1,40 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "mural.fullname" . }}-migrate-{{ .Release.Revision }}
+  labels:
+    {{- include "mural.labels" . | nindent 4 }}
+  annotations:
+    "helm.sh/hook": post-install,post-upgrade
+    "helm.sh/hook-weight": "0"
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+spec:
+  backoffLimit: 5
+  ttlSecondsAfterFinished: 120
+  template:
+    metadata:
+      labels:
+        {{- include "mural.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: migration
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: migrate
+          image: "{{ .Values.migration.image.repository }}:{{ .Values.migration.image.tag }}"
+          imagePullPolicy: {{ .Values.migration.image.pullPolicy }}
+          env:
+            - { name: PGHOST, value: {{ printf "%s-postgres" (include "mural.fullname" .) | quote }} }
+            - { name: PGUSER, value: {{ .Values.postgres.user | quote }} }
+            - { name: PGDATABASE, value: {{ .Values.postgres.database | quote }} }
+            - name: PGPASSWORD
+              valueFrom: { secretKeyRef: { name: {{ include "mural.fullname" . }}-database, key: POSTGRES_PASSWORD } }
+          command: ["sh", "-ec"]
+          args: ["until pg_isready; do sleep 2; done; for f in /migrations/*.sql; do psql -v ON_ERROR_STOP=1 -f \"$f\"; done"]
+          resources:
+            {{- toYaml .Values.migration.resources | nindent 12 }}
+          volumeMounts:
+            - { name: migrations, mountPath: /migrations, readOnly: true }
+      volumes:
+        - name: migrations
+          configMap: { name: {{ include "mural.fullname" . }}-migrations }
+

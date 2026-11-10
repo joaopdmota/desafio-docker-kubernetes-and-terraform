@@ -1,0 +1,24 @@
+services:
+  infra:
+    build:
+      context: .
+      dockerfile: infra/tools/Dockerfile
+    privileged: true
+    working_dir: /workspace
+    environment:
+      DOCKER_TLS_CERTDIR: ""
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - .:/workspace
+      - mural-docker-data:/var/lib/docker
+    healthcheck:
+      test: ["CMD", "docker", "info"]
+      interval: 3s
+      timeout: 3s
+      retries: 40
+
+volumes:
+  mural-docker-data:
+

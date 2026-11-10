@@ -1,0 +1,49 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "mural.fullname" . }}-web
+  labels:
+    {{- include "mural.labels" . | nindent 4 }}
+    app.kubernetes.io/component: web
+spec:
+  replicas: {{ .Values.web.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "mural.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: web
+  template:
+    metadata:
+      labels:
+        {{- include "mural.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: web
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+    spec:
+      containers:
+        - name: web
+          image: "{{ .Values.web.image.repository }}:{{ .Values.web.image.tag }}"
+          imagePullPolicy: {{ .Values.web.image.pullPolicy }}
+          env:
+            - name: API_UPSTREAM
+              valueFrom: { configMapKeyRef: { name: {{ include "mural.fullname" . }}-config, key: API_UPSTREAM } }
+          ports:
+            - { name: http, containerPort: {{ .Values.web.port }}, protocol: TCP }
+          livenessProbe: { tcpSocket: { port: http }, initialDelaySeconds: 3, periodSeconds: 10 }
+          readinessProbe: { tcpSocket: { port: http }, initialDelaySeconds: 2, periodSeconds: 5 }
+          securityContext: { allowPrivilegeEscalation: false }
+          resources:
+            {{- toYaml .Values.web.resources | nindent 12 }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "mural.fullname" . }}-web
+  labels:
+    {{- include "mural.labels" . | nindent 4 }}
+spec:
+  selector:
+    {{- include "mural.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: web
+  ports:
+    - { name: http, port: {{ .Values.web.port }}, targetPort: http }
+
